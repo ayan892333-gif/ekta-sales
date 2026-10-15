@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="gu"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>EKTA SALES — દિવાળી ધમાકા</title>
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0b1530">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="EKTA SALES">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b1530;--card:#13213f;--line:#243558;--red:#d71920;--gold:#f5b82e;--tx:#eef1f8;--mut:#9aa8c7;--ok:#3ecf8e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 'Noto Sans Gujarati',system-ui,sans-serif;padding:env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom))}
+main{max-width:860px;margin:auto;padding:14px}h1{font-size:20px;margin:4px 0 12px}h2{font-size:17px;margin:16px 0 8px;color:var(--gold)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+input,select,textarea{width:100%;min-height:46px;padding:10px;margin:4px 0;border-radius:10px;border:1px solid var(--line);background:#0b1530;color:var(--tx);font:inherit}
+button{min-height:46px;padding:0 16px;border:0;border-radius:10px;background:var(--red);color:#fff;font:600 16px inherit;cursor:pointer}
+button.alt{background:#243558}button.sm{min-height:36px;padding:0 10px;font-size:14px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0a1226;border-top:2px solid var(--red);padding-bottom:env(safe-area-inset-bottom)}
+nav a{flex:1;text-align:center;padding:12px 2px;font-size:12px;color:var(--mut);cursor:pointer}nav a.on{color:var(--gold);font-weight:800}
+.bar{height:12px;background:#0b1530;border-radius:8px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--gold))}
+.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;background:#243558}
+.b-ok{background:var(--ok);color:#06231a}.b-pend{background:var(--gold);color:#3a2a00}.row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.big{font-size:44px;font-weight:800;color:var(--gold);line-height:1.1}.mut{color:var(--mut);font-size:14px}.err{color:#ff8a8a}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px 4px;border-bottom:1px solid var(--line);text-align:left}.sc{overflow-x:auto}
+</style></head><body><main id="app"></main><nav id="nav"></nav>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SB_URL='https://qmqvczjlnbmtjmvkayjw.supabase.co', SB_KEY='sb_publishable_Wp_QL3vnK_R6DtiTt0Yxmw_Ml-vPkxx'; // anon key is public by design; RLS protects data
+const $=id=>document.getElementById(id), CONFIGURED=!SB_URL.startsWith('YOUR_');
+const sb=CONFIGURED?supabase.createClient(SB_URL,SB_KEY):null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=d=>new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+let role,S,G,tab,cache={};
+const NAV={admin:[['dash','ડેશબોર્ડ'],['cust','ગ્રાહકો'],['ord','પેટી એન્ટ્રી'],['gift','ગિફ્ટ સ્ટેટસ'],['rep','રિપોર્ટ'],['set','સેટિંગ્સ']],
+ cust:[['scheme','મારી સ્કીમ'],['orders','મારી પેટી'],['gifts','મારા ગિફ્ટ'],['prof','પ્રોફાઇલ']]};
+const eligible=(p,gs=G)=>{const a=gs.filter(g=>p>=g.target_peti);return S.cumulative?a:a.slice(-1)};
+const nextG=p=>G.find(g=>g.target_peti>p);
+async function boot(){
+  if(!CONFIGURED) return $('app').innerHTML='<h1>Setup baaki hai</h1><div class="card">index.html me SB_URL aur SB_KEY (Supabase) daalna baaki hai. README dekho.</div>';
+  const {data:{session}}=await sb.auth.getSession(); if(!session) return login();
+  const {data:a}=await sb.from('admins').select('user_id').maybeSingle(); role=a?'admin':'cust';
+  S=(await sb.from('settings').select('*').single()).data; G=(await sb.from('gifts').select('*').order('target_peti')).data||[];
+  go(NAV[role][0][0]);
+}
+function login(){$('nav').innerHTML='';$('app').innerHTML=`<h1 style="margin-top:40px">EKTA SALES<br><span class="mut">દિવાળી ધમાકા ઓફર 2026</span></h1><div class="card">
+<b>ગ્રાહક લૉગિન</b><input id="id" placeholder="ગ્રાહક ID / મોબાઇલ નંબર" autocomplete="username"><input id="pw" type="password" placeholder="PIN" autocomplete="current-password">
+<button onclick="doLogin(false)" style="width:100%">લૉગિન</button><p class="err" id="e"></p></div>
+<div class="card"><b>Admin</b><input id="em" type="email" placeholder="Email"><input id="ap" type="password" placeholder="Password">
+<button class="alt" onclick="doLogin(true)" style="width:100%">Admin Login</button></div>`}
+async function doLogin(adm){
+  let email=adm?$('em').value.trim():null, pw=adm?$('ap').value:$('pw').value;
+  if(!adm){const {data}=await sb.rpc('resolve_login',{ident:$('id').value.trim()}); email=data}
+  const {error}=email?await sb.auth.signInWithPassword({email,password:pw}):{error:1};
+  if(error) return $('e')?($('e').textContent='ID/મોબાઇલ અથવા PIN ખોટો છે'):alert('Wrong email or password');
+  boot();
+}
+const logout=async()=>{await sb.auth.signOut();login()};
+async function go(t){tab=t;$('nav').innerHTML=NAV[role].map(([k,l])=>`<a class="${k==t?'on':''}" onclick="go('${k}')">${l}</a>`).join('');
+  $('app').innerHTML='<p class="mut">લોડ થાય છે…</p>';
+  try{$('app').innerHTML=await VIEW[tab]()}catch(e){$('app').innerHTML=`<p class="err">Error: ${esc(e.message)}</p>`}}
+async function totals(){const [c,t,o,d]=await Promise.all([sb.from('customers').select('*').order('shop_name'),sb.from('customer_totals').select('*'),
+  sb.from('orders').select('*').order('order_date',{ascending:false}),sb.from('deliveries').select('*')]);
+  for(const r of [c,t,o,d]) if(r.error) throw r.error;
+  const tm=Object.fromEntries(t.data.map(x=>[x.customer_id,x.peti]));
+  cache={c:c.data.map(x=>({...x,peti:tm[x.id]||0})),o:o.data,d:d.data};return cache}
+const delivered=(cid,gid)=>cache.d.find(x=>x.customer_id==cid&&x.gift_id==gid);
+const pts=p=>Math.floor(p*S.points_per_peti*100)/100;
+const prog=(p)=>{const n=nextG(p);return `<div class="bar"><i style="width:${n?Math.min(100,p/n.target_peti*100):100}%"></i></div>`};
+const ptsNote=()=>`<p class="mut">પોઇન્ટ = પેટી × ${S.points_per_peti} ${S.points_confirmed?'':'<span class="badge b-pend">કામચલાઉ — એજન્સી પુષ્ટિ બાકી</span>'}</p>`;
+
+const VIEW={
+async dash(){const {c,d}=await totals();const act=c.filter(x=>x.active);let el=0,pe=0;
+  act.forEach(x=>eligible(x.peti).forEach(g=>{el++;if(!delivered(x.id,g.id))pe++}));
+  return `<h1>ડેશબોર્ડ</h1><div class="card row"><div><div class="big">${act.length}</div>ગ્રાહકો</div><div><div class="big">${act.reduce((s,x)=>s+x.peti,0)}</div>સ્કીમ પેટી</div>
+  <div><div class="big">${el}</div>ગિફ્ટ પાત્ર</div><div><div class="big">${pe}</div>ડિલિવરી બાકી</div></div>
+  <p class="mut">સ્કીમ: ${fmt(S.scheme_start)} – ${fmt(S.scheme_end)}</p>${ptsNote()}`},
+async cust(q=''){const {c}=await totals();const f=c.filter(x=>(x.shop_name+x.mobile+x.customer_code).toLowerCase().includes(q.toLowerCase()));
+  return `<h1>ગ્રાહકો</h1><input id="q" placeholder="શોધો: દુકાન / મોબાઇલ / ID" value="${esc(q)}" oninput="VIEW.cust(this.value).then(h=>{$('app').innerHTML=h;$('q').focus();$('q').setSelectionRange(99,99)})">
+  <details class="card"><summary><b>+ નવો ગ્રાહક</b></summary><input id="n1" placeholder="ગ્રાહક ID (e.g. ES001)"><input id="n2" placeholder="દુકાનનું નામ"><input id="n3" placeholder="માલિકનું નામ">
+  <input id="n4" inputmode="numeric" maxlength="10" placeholder="મોબાઇલ (10 અંક)"><input id="n5" placeholder="સરનામું"><input id="n6" placeholder="PIN (ઓછામાં ઓછા 6)">
+  <button onclick="addCust()">સેવ કરો</button></details>
+  ${f.length?f.map(x=>`<div class="card"><div class="row"><b>${esc(x.shop_name)}</b><span class="badge ${x.active?'b-ok':''}">${x.active?'સક્રિય':'બંધ'}</span></div>
+  <div class="mut">${esc(x.customer_code)} · ${esc(x.owner_name)} · ${esc(x.mobile)}<br>${esc(x.address)}</div><b>${x.peti} પેટી</b>
+  <div class="row" style="margin-top:8px"><button class="sm alt" onclick="resetPin('${x.user_id}')">PIN રીસેટ</button>
+  <button class="sm alt" onclick="toggle('${x.id}',${!x.active})">${x.active?'બંધ કરો':'ચાલુ કરો'}</button><button class="sm alt" onclick="hist('${x.id}')">ઇતિહાસ</button></div></div>`).join(''):'<p class="mut">કોઈ ગ્રાહક નથી. ઉપર નવો ઉમેરો.</p>'}`},
+async ord(){const {c,o}=await totals();const nm=Object.fromEntries(c.map(x=>[x.id,x.shop_name]));
+  return `<h1>પેટી એન્ટ્રી</h1><div class="card"><select id="oc">${c.filter(x=>x.active).map(x=>`<option value="${x.id}">${esc(x.shop_name)} (${esc(x.customer_code)})</option>`).join('')}</select>
+  <input id="od" type="date" value="${today()}"><input id="on" type="number" inputmode="numeric" min="1" placeholder="પેટી સંખ્યા"><input id="oi" placeholder="ઇન્વોઇસ નંબર"><input id="ot" placeholder="નોંધ (વૈકલ્પિક)">
+  <button onclick="addOrder()" style="width:100%">એન્ટ્રી સેવ કરો</button><p class="err" id="e"></p></div>
+  <div class="sc"><table>${o.slice(0,50).map(x=>`<tr><td>${fmt(x.order_date)}</td><td>${esc(nm[x.customer_id])}</td><td>${x.cases}</td><td>${esc(x.invoice_no)}</td>
+  <td>${x.status=='valid'?'':'<span class="badge">રદ</span>'}<button class="sm alt" onclick="cancelOrd('${x.id}','${x.status}')">${x.status=='valid'?'રદ':'પાછું'}</button> <button class="sm" onclick="delOrd('${x.id}')">✕</button></td></tr>`).join('')}</table></div>`},
+async gift(){const {c}=await totals();let h='<h1>ગિફ્ટ સ્ટેટસ</h1>';
+  c.filter(x=>x.active).forEach(x=>{const gs=eligible(x.peti);if(!gs.length)return;h+=`<div class="card"><b>${esc(x.shop_name)}</b> · ${x.peti} પેટી`+gs.map(g=>{const d=delivered(x.id,g.id);
+  return `<div class="row" style="margin-top:8px"><span>${g.target_peti} — ${esc(g.name)}</span>${d?`<span class="badge b-ok">ડિલિવર ${fmt(d.delivered_on)}</span>`:`<span><span class="badge b-pend">બાકી</span> <button class="sm" onclick="deliver('${x.id}','${g.id}')">ડિલિવર</button></span>`}</div>`}).join('')+'</div>'});
+  return h.includes('card')?h:h+'<p class="mut">હજી કોઈ ગ્રાહક ગિફ્ટ માટે પાત્ર નથી.</p>'},
+async rep(){const {c}=await totals();return `<h1>રિપોર્ટ</h1><div class="card"><b>તારીખ ફિલ્ટર (ઓર્ડર)</b><input id="rf" type="date" value="${S.scheme_start}"><input id="rt" type="date" value="${S.scheme_end}">
+  <button onclick="csvOrders()" style="width:100%">ઓર્ડર CSV</button></div><div class="card"><button onclick="csvSummary()" style="width:100%">ગ્રાહક સમરી CSV</button></div>
+  <h2>આગલા ટાર્ગેટની નજીક</h2>${c.filter(x=>x.active&&nextG(x.peti)&&nextG(x.peti).target_peti-x.peti<=10).map(x=>`<div class="card row"><span>${esc(x.shop_name)}</span><span>${nextG(x.peti).target_peti-x.peti} પેટી બાકી</span></div>`).join('')||'<p class="mut">કોઈ નથી.</p>'}`},
+async set(){return `<h1>સેટિંગ્સ</h1><div class="card"><label>સ્કીમ શરૂ</label><input id="s1" type="date" value="${S.scheme_start}"><label>સ્કીમ અંત</label><input id="s2" type="date" value="${S.scheme_end}">
+  <label>પોઇન્ટ પ્રતિ પેટી</label><input id="s3" type="number" step="0.01" value="${S.points_per_peti}"><label>કૂપન દીઠ ન્યૂનતમ પેટી</label><input id="s4" type="number" value="${S.min_peti_per_coupon}">
+  <label>રિવૉર્ડ માટે પોઇન્ટ</label><input id="s5" type="number" value="${S.points_to_unlock}"><label><input id="s6" type="checkbox" style="width:auto;min-height:0" ${S.cumulative?'checked':''}> ક્યુમ્યુલેટિવ ગિફ્ટ</label><br>
+  <label><input id="s7" type="checkbox" style="width:auto;min-height:0" ${S.points_confirmed?'checked':''}> પોઇન્ટ નિયમ એજન્સી દ્વારા પુષ્ટિ</label><button onclick="saveSet()" style="width:100%;margin-top:8px">સેવ</button></div>
+  <h2>ગિફ્ટ ટાર્ગેટ</h2>${G.map(g=>`<div class="row"><input style="width:90px" type="number" value="${g.target_peti}" id="gt${g.id}"><input style="flex:1" value="${esc(g.name)}" id="gn${g.id}"><button class="sm" onclick="saveGift('${g.id}')">સેવ</button><button class="sm alt" onclick="delGift('${g.id}')">✕</button></div>`).join('')}
+  <div class="row"><input style="width:90px" type="number" placeholder="પેટી" id="gt0"><input style="flex:1" placeholder="નવી ગિફ્ટ" id="gn0"><button class="sm" onclick="saveGift('')">ઉમેરો</button></div>
+  <p><button class="alt" onclick="logout()">લૉગઆઉટ</button></p>`},
+// ---- customer
+async scheme(){const {c,d}=await totals();const x=c[0];if(!x)return'<p class="err">પ્રોફાઇલ મળી નથી.</p>';const n=nextG(x.peti);const left=Math.max(0,Math.ceil((new Date(S.scheme_end)-new Date(today()))/864e5));
+  return `<h1>${esc(x.shop_name)}</h1><div class="mut">ID: ${esc(x.customer_code)}</div><div class="card"><div class="big">${x.peti}</div>સ્કીમ પેટી ${prog(x.peti)}
+  ${n?`આગલો ટાર્ગેટ: <b>${n.target_peti}</b> — ${esc(n.name)}<br><span class="mut">${n.target_peti-x.peti} પેટી બાકી</span>`:'🎉 બધા ટાર્ગેટ પૂર્ણ'}</div>
+  <div class="card"><b>પોઇન્ટ: ${pts(x.peti)}</b>${ptsNote()}</div><div class="card"><b>સ્કીમ:</b> ${fmt(S.scheme_start)} – ${fmt(S.scheme_end)}<br>${left} દિવસ બાકી<br>
+  <span class="mut">ફક્ત સ્કીમ તારીખો વચ્ચેના માન્ય ઓર્ડર ગણાય છે. રદ થયેલા ઓર્ડર ગણાતા નથી.</span></div>`},
+async orders(){const {o}=await totals();return `<h1>મારી પેટી</h1><div class="sc"><table><tr><th>તારીખ</th><th>પેટી</th><th>ઇન્વોઇસ</th><th></th></tr>${o.map(x=>{const inn=x.status=='valid'&&x.order_date>=S.scheme_start&&x.order_date<=S.scheme_end;
+  return `<tr><td>${fmt(x.order_date)}</td><td>${x.cases}</td><td>${esc(x.invoice_no)}</td><td>${inn?'<span class="badge b-ok">ગણાય</span>':'<span class="badge">ગણાય નહિ</span>'}</td></tr>`}).join('')||'<tr><td>હજી કોઈ ઓર્ડર નથી</td></tr>'}</table></div>`},
+async gifts(){const {c}=await totals();const x=c[0];return '<h1>મારા ગિફ્ટ</h1>'+G.map(g=>{const ok=eligible(x.peti).includes(g),d=delivered(x.id,g.id);
+  return `<div class="card"><div class="row"><b>${g.target_peti} પેટી</b><span class="badge ${d?'b-ok':ok?'b-pend':''}">${d?'ડિલિવર થયું':ok?'પાત્ર — ડિલિવરી બાકી':'બાકી '+(g.target_peti-x.peti)+' પેટી'}</span></div>${esc(g.name)}
+  ${d?`<div class="mut">ડિલિવરી તારીખ: ${fmt(d.delivered_on)}</div>`:`<div class="bar"><i style="width:${Math.min(100,x.peti/g.target_peti*100)}%"></i></div>`}</div>`}).join('')},
+async prof(){const {c}=await totals();const x=c[0];return `<h1>પ્રોફાઇલ</h1><div class="card">${esc(x.shop_name)}<br>${esc(x.owner_name)}<br>${esc(x.mobile)}<br>ID: ${esc(x.customer_code)}</div><button class="alt" onclick="logout()">લૉગઆઉટ</button>`}
+};
+// ---- admin actions
+const inv=async b=>{const {data,error}=await sb.functions.invoke('admin-users',{body:b});if(error||data?.error){let m=data?.error;try{m=m||(await error.context.json()).error}catch{};alert(m||error.message);return false}return true};
+async function addCust(){if(await inv({action:'create',code:$('n1').value.trim(),shop:$('n2').value.trim(),owner:$('n3').value.trim(),mobile:$('n4').value.trim(),address:$('n5').value.trim(),pin:$('n6').value}))go('cust')}
+async function resetPin(uid){const p=prompt('નવો PIN (ઓછામાં ઓછા 6)');if(p&&await inv({action:'reset',user_id:uid,pin:p}))alert('PIN બદલાયો')}
+async function toggle(id,v){await sb.from('customers').update({active:v}).eq('id',id);go('cust')}
+function hist(id){const r=cache.o.filter(x=>x.customer_id==id);alert(r.map(x=>`${x.order_date}  ${x.cases}  ${x.invoice_no}  ${x.status}`).join('\n')||'કોઈ ઓર્ડર નથી')}
+async function addOrder(){const r=await sb.from('orders').insert({customer_id:$('oc').value,order_date:$('od').value,cases:+$('on').value,invoice_no:$('oi').value.trim(),notes:$('ot').value||null});
+  if(r.error)return $('e').textContent=r.error.code=='23505'?'આ ઇન્વોઇસ નંબર પહેલેથી નોંધાયેલો છે':r.error.message;go('ord')}
+async function cancelOrd(id,s){await sb.from('orders').update({status:s=='valid'?'cancelled':'valid'}).eq('id',id);go('ord')}
+async function delOrd(id){if(confirm('આ એન્ટ્રી ડિલીટ કરવી છે?')){await sb.from('orders').delete().eq('id',id);go('ord')}}
+async function deliver(c,g){const d=prompt('ડિલિવરી તારીખ (YYYY-MM-DD)',today());if(!d)return;await sb.from('deliveries').upsert({customer_id:c,gift_id:g,delivered_on:d,remarks:prompt('નોંધ (વૈકલ્પિક)')||null});go('gift')}
+async function saveSet(){const r=await sb.from('settings').update({scheme_start:$('s1').value,scheme_end:$('s2').value,points_per_peti:+$('s3').value,min_peti_per_coupon:+$('s4').value,points_to_unlock:+$('s5').value,cumulative:$('s6').checked,points_confirmed:$('s7').checked}).eq('id',1);
+  if(r.error)return alert(r.error.message);S=(await sb.from('settings').select('*').single()).data;alert('સેવ થયું')}
+async function saveGift(id){const v={target_peti:+$('gt'+(id||0)).value,name:$('gn'+(id||0)).value.trim()};const r=id?await sb.from('gifts').update(v).eq('id',id):await sb.from('gifts').insert(v);
+  if(r.error)return alert(r.error.message);G=(await sb.from('gifts').select('*').order('target_peti')).data;go('set')}
+async function delGift(id){if(confirm('ગિફ્ટ ડિલીટ કરવી છે? ડિલિવરી રેકોર્ડ પણ જશે.')){await sb.from('gifts').delete().eq('id',id);G=G.filter(g=>g.id!=id);go('set')}}
+function csv(name,rows){const t='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv;charset=utf-8'}));a.download=name;a.click()}
+function csvSummary(){csv('customer-summary.csv',[['ID','Shop','Owner','Mobile','Scheme peti','Points','Eligible gifts','Delivered gifts']].concat(cache.c.map(x=>{const e=eligible(x.peti);
+  return [x.customer_code,x.shop_name,x.owner_name,x.mobile,x.peti,pts(x.peti),e.map(g=>g.name).join('; '),e.filter(g=>delivered(x.id,g.id)).map(g=>g.name).join('; ')]})))}
+function csvOrders(){const f=$('rf').value,t=$('rt').value,nm=Object.fromEntries(cache.c.map(x=>[x.id,x]));
+  csv('orders.csv',[['Date','ID','Shop','Cases','Invoice','Status','Notes']].concat(cache.o.filter(x=>x.order_date>=f&&x.order_date<=t).map(x=>[x.order_date,nm[x.customer_id]?.customer_code,nm[x.customer_id]?.shop_name,x.cases,x.invoice_no,x.status,x.notes])))}
+boot();
+</script></body></html>
